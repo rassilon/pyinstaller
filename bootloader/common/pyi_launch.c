@@ -260,6 +260,9 @@ int pyi_launch_extract_binaries(ARCHIVE_STATUS *archive_status)
 {
     int retcode = 0;
     ptrdiff_t index = 0;
+#if defined(WIN32) && defined(WINDOWED)
+    int countTOCs = 0;
+#endif
 
     /*
      * archive_pool[0] is reserved for the main process, the others for dependencies.
@@ -275,6 +278,27 @@ int pyi_launch_extract_binaries(ARCHIVE_STATUS *archive_status)
 
 	VS("LOADER: Extracting binaries\n");
 
+#if defined(WIN32) && defined(WINDOWED)
+    /* 
+     * Count the # of TOCs in order to know how to set the range of the 
+     * progress bar.
+     */
+    while (ptoc < archive_status->tocend) {
+        countTOCs++;
+		ptoc = pyi_arch_increment_toc_ptr(archive_status, ptoc);
+    }
+
+    /* Reset to the beginning of the TOC */
+    ptoc = archive_status->tocbuff;
+    if (hwndDialog == NULL) {
+        while (hwndDialog != NULL) {
+            Sleep(5);
+        }
+    }
+    PostMessage(hwndDialog, WM_EXTRACTCOUNT, countTOCs, 0);
+    PostMessage(hwndDialog, WM_EXTRACTITEM, 1, 0);
+#endif
+
 	while (ptoc < archive_status->tocend) {
 		if (ptoc->typcd == ARCHIVE_ITEM_BINARY || ptoc->typcd == ARCHIVE_ITEM_DATA ||
                 ptoc->typcd == ARCHIVE_ITEM_ZIPFILE) {
@@ -282,8 +306,10 @@ int pyi_launch_extract_binaries(ARCHIVE_STATUS *archive_status)
 				retcode = -1;
                 break;  /* No need to extract other items in case of error. */
             }
+#if defined(WIN32) && defined(WINDOWED)
+            PostMessage(hwndDialog, WM_EXTRACTITEM, 1, 0);
+#endif
         }
-
         else {
             /* 'Multipackage' feature - dependency is stored in different executables. */
             if (ptoc->typcd == ARCHIVE_ITEM_DEPENDENCY) {
@@ -305,7 +331,9 @@ int pyi_launch_extract_binaries(ARCHIVE_STATUS *archive_status)
     for (index = 1; archive_pool[index] != NULL; index++) {
         pyi_arch_status_free_memory(archive_pool[index]);
     }
-
+#if defined(WIN32) && defined(WINDOWED)
+    PostMessage(hwndDialog, WM_COMMAND, IDOK, 0);
+#endif
 	return retcode;
 }
 

@@ -35,7 +35,10 @@
 
 #ifdef WIN32
     #include <windows.h>
+    #include <CommCtrl.h>
+    #include <process.h>
     #include <wchar.h>
+    #include "..\resource1.h"
 #else
     #include <limits.h>  // PATH_MAX
 #endif
@@ -55,8 +58,63 @@
 
 
 #if defined(WIN32) && defined(WINDOWED)
+HWND hProgress = NULL;
+HWND hwndDialog = NULL;
+
+LRESULT CALLBACK DlgProc(HWND hWndDlg, UINT Msg,
+		       WPARAM wParam, LPARAM lParam)
+{
+    switch(Msg)
+	{
+    case WM_INITDIALOG:
+        hwndDialog - hWndDlg;
+        hProgress = GetDlgItem(hWndDlg, IDC_PROGRESS_CTRL);
+        break;
+    case WM_EXTRACTCOUNT:
+        SendMessage(hProgress, PBM_SETRANGE, 0, MAKELPARAM(0, wParam));
+        break;
+    case WM_EXTRACTITEM:
+        SendMessage(hProgress, PBM_DELTAPOS, 1, 0);
+        break;
+	case WM_COMMAND:
+		switch(wParam)
+		{
+		case IDOK:
+			EndDialog(hWndDlg, 0);
+			return TRUE;
+		case IDCANCEL:
+			EndDialog(hWndDlg, 0);
+			return TRUE;
+		}
+		break;
+	}
+	return FALSE;
+}
+
 int APIENTRY WinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance,
 						LPSTR lpCmdLine, int nCmdShow )
+{
+    INITCOMMONCONTROLSEX InitCtrlEx;
+    HANDLE hThread;
+    extern uint APIENTRY main(void*);
+
+	InitCtrlEx.dwSize = sizeof(INITCOMMONCONTROLSEX);
+	InitCtrlEx.dwICC  = ICC_PROGRESS_CLASS;
+	InitCommonControlsEx(&InitCtrlEx);
+    
+    // Run extraction on a background thread.
+    hThread = (HANDLE)_beginthreadex(NULL, 0, main, NULL, 0, NULL);
+
+	DialogBox(hInstance, MAKEINTRESOURCE(IDD_PROGRESS_DLG),
+	          NULL, (DLGPROC)DlgProc);
+
+    WaitForSingleObject(hThread, INFINITE);
+    CloseHandle(hThread);
+	return FALSE;
+}
+
+
+uint APIENTRY main(void *v)
 #else
 int main(int argc, char* argv[])
 #endif

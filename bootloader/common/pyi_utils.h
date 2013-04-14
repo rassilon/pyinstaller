@@ -18,6 +18,13 @@
 #ifndef HEADER_PYI_UTILS_H
 #define HEADER_PYI_UTILS_H
 
+#if defined(WIN32) && defined(WINDOWED)
+
+#define WM_EXTRACTCOUNT (WM_USER + 0x100)
+#define WM_EXTRACTITEM  (WM_USER + 0x101)
+extern HWND hwndDialog;
+
+#endif
 
 /* Environment variables. */
 
